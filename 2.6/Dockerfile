@@ -1,4 +1,6 @@
-FROM rhel7.1
+FROM centos:centos7
+MAINTAINER SoftwareCollections.org <sclorg@redhat.com>
+
 # MongoDB image for OpenShift.
 #
 # Volumes:
@@ -17,13 +19,6 @@ LABEL io.k8s.description="MongoDB is a scalable, high-performance, open source N
       io.openshift.expose-services="27017:mongodb" \
       io.openshift.tags="database,mongodb,rh-mongodb26"
 
-# Labels consumed by Red Hat build service
-LABEL BZComponent="rh-mongodb26-docker" \
-      Name="rhscl/mongodb-26-rhel7" \
-      Version="2.6" \
-      Release="1" \
-      Architecture="x86_64"
-
 EXPOSE 27017
 
 # This image must forever use UID 184 for mongodb user and GID 998 for the
@@ -31,18 +26,18 @@ EXPOSE 27017
 # change, the last test is there to make sure of that.
 # Due to the https://bugzilla.redhat.com/show_bug.cgi?id=1206151,
 # the whole /var/lib/mongodb/ dir has to be chown-ed.
-RUN yum install -y yum-utils && \
-    yum-config-manager --enable rhel-server-rhscl-7-rpms && \
-    yum-config-manager --enable rhel-7-server-optional-rpms && \
+RUN yum install -y epel-release && \
+    rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
+    yum -y --setopt=tsflags=nodocs install \
+    https://www.softwarecollections.org/en/scls/rhscl/v8314/epel-7-x86_64/download/rhscl-v8314-epel-7-x86_64.noarch.rpm \
+    https://www.softwarecollections.org/en/scls/rhscl/rh-mongodb26/epel-7-x86_64/download/rhscl-rh-mongodb26-epel-7-x86_64.noarch.rpm \
+    https://www.softwarecollections.org/en/scls/rhscl/rh-java-common/epel-7-x86_64/download/rhscl-rh-java-common-epel-7-x86_64.noarch.rpm && \
     yum install -y --setopt=tsflags=nodocs bind-utils gettext iproute v8314 rh-mongodb26-mongodb rh-mongodb26 && \
     yum clean all && \
     mkdir -p /var/lib/mongodb/data && chown -R mongodb.0 /var/lib/mongodb/ /var/opt/rh/rh-mongodb26/lib/mongodb && \
-    test "$(id mongodb)" = "uid=184(mongodb) gid=998(mongodb) groups=998(mongodb)" && \
     # Loosen permission bits to avoid problems running container with arbitrary UID
-    chmod g+w -R /var/opt/rh/rh-mongodb26/lib/mongodb
-
-# Loosen permission bits to avoid problems running container with arbitrary UID
-RUN chmod -R g+rwx /var/lib/mongodb
+    chmod g+w -R /var/opt/rh/rh-mongodb26/lib/mongodb && \
+    chmod -R g+rwx /var/lib/mongodb
 
 # Get prefix path and path to scripts rather than hard-code them in scripts
 ENV CONTAINER_SCRIPTS_PATH=/usr/share/container-scripts/mongodb \
